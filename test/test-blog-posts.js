@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const should = chai.should();
 
 const {DATABASE_URL} = require('../config');
-const {BlogPost} = require('../models');
+const {User, BlogPost} = require('../models');
 const {closeServer, runServer, app} = require('../server');
 const {TEST_DATABASE_URL} = require('../config');
 
@@ -23,10 +23,10 @@ function tearDownDb() {
     console.warn('Deleting database');
     mongoose.connection.dropDatabase()
       .then(result => resolve(result))
-      .catch(err => reject(err))
+      .catch(err => reject(err));
   });
 }
-
+mongoose.Promise = global.Promise;
 
 // used to put randomish documents in db
 // so we have data to work with and assert about.
@@ -50,6 +50,23 @@ function seedBlogPostData() {
   return BlogPost.insertMany(seedData);
 }
 
+// Node REPL
+  // User.hashPassword('happy').then(hash => console.log(hash));
+  // must run line above on single line or it will not work :/
+
+const myUser = {
+  username: faker.internet.userName(),
+  password: '$2a$10$5ETobTF06.8GrpCzd57ZaeIgISBIGqWNR.gOgaszido7Uody7jlra',
+  password_plain: 'happy',
+  firstName: faker.name.firstName(),
+  lastName: faker.name.lastName()
+};
+
+// Add a seedUser function which is run in the beforeEach block
+// It should add a user document to the database, containing your hashed password
+function seedUser() {
+  return User.create(myUser);
+}
 
 describe('blog posts API resource', function() {
 
@@ -58,7 +75,7 @@ describe('blog posts API resource', function() {
   });
 
   beforeEach(function() {
-    return seedBlogPostData();
+    return Promise.all([seedBlogPostData(), seedUser()]);
   });
 
   afterEach(function() {
@@ -85,6 +102,7 @@ describe('blog posts API resource', function() {
       let res;
       return chai.request(app)
         .get('/posts')
+        .auth(myUser.username, myUser.password)
         .then(_res => {
           res = _res;
           res.should.have.status(200);
@@ -135,19 +153,21 @@ describe('blog posts API resource', function() {
     // then prove that the post we get back has
     // right keys, and that `id` is there (which means
     // the data was inserted into db)
-    it('should add a new blog post', function() {
+    it('should add a new blog post, line 156', function() {
 
       const newPost = {
-          title: faker.lorem.sentence(),
-          author: {
-            firstName: faker.name.firstName(),
-            lastName: faker.name.lastName(),
-          },
-          content: faker.lorem.text()
+        title: faker.lorem.sentence(),
+        // author: {
+        //   firstName: faker.name.firstName(),
+        //   lastName: faker.name.lastName(),
+        // },
+        content: faker.lorem.text()
       };
-
+      console.log('whats my user name on line ~166? ', myUser.username);
+      console.log('whats my password on line ~167? ', myUser.password_plain);
       return chai.request(app)
         .post('/posts')
+        .auth(myUser.username, myUser.password_plain)
         .send(newPost)
         .then(function(res) {
           res.should.have.status(201);
@@ -159,7 +179,8 @@ describe('blog posts API resource', function() {
           // cause Mongo should have created id on insertion
           res.body.id.should.not.be.null;
           res.body.author.should.equal(
-            `${newPost.author.firstName} ${newPost.author.lastName}`);
+            `${myUser.firstName} ${myUser.lastName}`);
+            // `${newPost.author.firstName} ${newPost.author.lastName}`);
           res.body.content.should.equal(newPost.content);
           return BlogPost.findById(res.body.id).exec();
         })
@@ -184,8 +205,8 @@ describe('blog posts API resource', function() {
         title: 'cats cats cats',
         content: 'dogs dogs dogs',
         author: {
-          firstName: 'foo',
-          lastName: 'bar'
+          firstName: myUser.firstName,
+          lastName: myUser.lastName
         }
       };
 
@@ -197,6 +218,7 @@ describe('blog posts API resource', function() {
 
           return chai.request(app)
             .put(`/posts/${post.id}`)
+            .auth(myUser.username, myUser.password_plain)
             .send(updateData);
         })
         .then(res => {
@@ -205,6 +227,7 @@ describe('blog posts API resource', function() {
           res.body.should.be.a('object');
           res.body.title.should.equal(updateData.title);
           res.body.author.should.equal(
+            // `${myUser.firstName} ${myUser.lastName}`);            
             `${updateData.author.firstName} ${updateData.author.lastName}`);
           res.body.content.should.equal(updateData.content);
 
@@ -234,7 +257,11 @@ describe('blog posts API resource', function() {
         .exec()
         .then(_post => {
           post = _post;
-          return chai.request(app).delete(`/posts/${post.id}`);
+          console.log('what is my username in Delete? ', myUser.username);
+          console.log('what is my password in Delete? ', myUser.password_plain);          
+          return chai.request(app)
+            .delete(`/posts/${post.id}`)
+            .auth(myUser.username, myUser.password_plain);
         })
         .then(res => {
           res.should.have.status(204);

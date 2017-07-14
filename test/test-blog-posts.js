@@ -39,8 +39,10 @@ function seedBlogPostData() {
   for (let i=1; i<=10; i++) {
     seedData.push({
       author: {
-        firstName: faker.name.firstName(),
-        lastName: faker.name.lastName()
+        firstName: 'Sally',
+        lastName: 'Snake'
+        // firstName: faker.name.firstName(),
+        // lastName: faker.name.lastName()
       },
       title: faker.lorem.sentence(),
       content: faker.lorem.text()
@@ -51,8 +53,8 @@ function seedBlogPostData() {
 }
 
 // Node REPL
-  // User.hashPassword('happy').then(hash => console.log(hash));
-  // must run line above on single line or it will not work :/
+// User.hashPassword('happy').then(hash => console.log(hash));
+// must run line above on single line or it will not work :/
 
 const myUser = {
   username: faker.internet.userName(),
@@ -61,6 +63,16 @@ const myUser = {
   firstName: faker.name.firstName(),
   lastName: faker.name.lastName()
 };
+
+// Add secondary user if we setup randomizer function
+
+// {
+//   username: faker.internet.userName(),
+//   password: '$2a$10$5ETobTF06.8GrpCzd57ZaeIgISBIGqWNR.gOgaszido7Uody7jlra',
+//   password_plain: 'happy',
+//   firstName: faker.name.firstName(),
+//   lastName: faker.name.lastName()
+// }
 
 // Add a seedUser function which is run in the beforeEach block
 // It should add a user document to the database, containing your hashed password
@@ -153,18 +165,17 @@ describe('blog posts API resource', function() {
     // then prove that the post we get back has
     // right keys, and that `id` is there (which means
     // the data was inserted into db)
+    // Add randomizer function that produces an index of either 0 or 1 
+  // Replace myUser[0] with myUser[index].
     it('should add a new blog post, line 156', function() {
-
       const newPost = {
         title: faker.lorem.sentence(),
-        // author: {
-        //   firstName: faker.name.firstName(),
-        //   lastName: faker.name.lastName(),
-        // },
+        author: {
+          firstName: myUser.firstName,
+          lastName: myUser.lastName
+        },
         content: faker.lorem.text()
       };
-      console.log('whats my user name on line ~166? ', myUser.username);
-      console.log('whats my password on line ~167? ', myUser.password_plain);
       return chai.request(app)
         .post('/posts')
         .auth(myUser.username, myUser.password_plain)
@@ -180,7 +191,6 @@ describe('blog posts API resource', function() {
           res.body.id.should.not.be.null;
           res.body.author.should.equal(
             `${myUser.firstName} ${myUser.lastName}`);
-            // `${newPost.author.firstName} ${newPost.author.lastName}`);
           res.body.content.should.equal(newPost.content);
           return BlogPost.findById(res.body.id).exec();
         })
@@ -190,6 +200,28 @@ describe('blog posts API resource', function() {
           post.author.firstName.should.equal(newPost.author.firstName);
           post.author.lastName.should.equal(newPost.author.lastName);
         });
+    });
+
+    it('should add new user line 200~', function() {
+      const myTestUser = {
+        username: faker.internet.userName(),
+        password: '$2a$10$5ETobTF06.8GrpCzd57ZaeIgISBIGqWNR.gOgaszido7Uody7jlra',
+        firstName: faker.name.firstName(),
+        lastName: faker.name.lastName()
+      };
+      return chai.request(app)
+        .post('/users')
+        .send(myTestUser)
+        .then(function(res){
+          res.should.have.status(201);
+          // for each user if we had more than one test user
+          res.body.should.be.a('object');
+          res.body.should.include.keys(
+            'username', 'firstName', 'lastName');  
+          res.body.username.should.equal(myTestUser.username);
+          res.body.firstName.should.equal(myTestUser.firstName);
+          res.body.lastName.should.equal(myTestUser.lastName);
+        }).then();
     });
   });
 
@@ -205,8 +237,8 @@ describe('blog posts API resource', function() {
         title: 'cats cats cats',
         content: 'dogs dogs dogs',
         author: {
-          firstName: myUser.firstName,
-          lastName: myUser.lastName
+          firstName: 'foo',
+          lastName: 'bar'
         }
       };
 
@@ -226,8 +258,7 @@ describe('blog posts API resource', function() {
           res.should.be.json;
           res.body.should.be.a('object');
           res.body.title.should.equal(updateData.title);
-          res.body.author.should.equal(
-            // `${myUser.firstName} ${myUser.lastName}`);            
+          res.body.author.should.equal(           
             `${updateData.author.firstName} ${updateData.author.lastName}`);
           res.body.content.should.equal(updateData.content);
 
@@ -257,8 +288,8 @@ describe('blog posts API resource', function() {
         .exec()
         .then(_post => {
           post = _post;
-          console.log('what is my username in Delete? ', myUser.username);
-          console.log('what is my password in Delete? ', myUser.password_plain);          
+          // console.log('what is my username in Delete? ', myUser.username);
+          // console.log('what is my password in Delete? ', myUser.password_plain);          
           return chai.request(app)
             .delete(`/posts/${post.id}`)
             .auth(myUser.username, myUser.password_plain);

@@ -86,6 +86,11 @@ app.post('/users', (req, res) => {
     });
 });
 
+//Sid's comment or the final extended task:
+
+//i have read the exercise again and it looks like if you make passport 
+//authentication on get route and make it restricted route , then you can test it to access with correct username and password
+
 app.get('/posts', (req, res) => {
   BlogPost
     .find()
